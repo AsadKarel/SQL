@@ -1,0 +1,128 @@
+
+
+-- 1.	Show the percentage of wins of each bidder in the order of highest to lowest percentage.
+
+SELECT *, ROUND(WON*100/NO_OF_BIDS,2) PERCENTAGE FROM 
+(SELECT BIDDER_ID, COUNT(*) WON FROM ipl_bidding_details WHERE BID_STATUS='WON' GROUP BY  BIDDER_ID) A 
+JOIN 
+(SELECT BIDDER_ID, NO_OF_BIDS FROM ipl_bidder_points) B USING (BIDDER_ID)
+ORDER BY WON*100/NO_OF_BIDS DESC ;
+
+-- 2.	Display the number of matches conducted at each stadium with stadium name, city from the database.
+
+SELECT STADIUM_NAME , CITY, COUNT(*) COUNT_OF_MATCHES FROM ipl_stadium T1 JOIN 
+(SELECT * FROM ipl_match_schedule WHERE STATUS <> 'CANCELLED') T2
+USING (STADIUM_ID) GROUP BY STADIUM_NAME ORDER BY  COUNT(*) DESC;
+
+-- 3. In a given stadium, what is the percentage of wins by a team which has won the toss?
+
+SELECT  STADIUM_NAME, 
+	   PERCENTAGE_WON_BY_TOSS FROM
+       (
+SELECT *,
+	    ROUND(TIMES_WON_WITH_TOSS/TOTAL_MATCHES * 100, 2)  PERCENTAGE_WON_BY_TOSS
+        FROM (
+SELECT *, 
+		 TIMES_WON_WITH_TOSS+TIMES_LOST_WITH_TOSS TOTAL_MATCHES
+        FROM
+( SELECT MATCH_ID, TOSS_WON_BY TEAMS, COUNT(TOSS_WON_BY) TIMES_WON_WITH_TOSS FROM (
+SELECT MATCH_ID,
+	CASE 
+    WHEN TOSS_WINNER = 2 THEN TEAM_ID2
+    WHEN TOSS_WINNER = 1 THEN TEAM_ID1
+END TOSS_WON_BY,
+    CASE
+    WHEN MATCH_WINNER = 2 THEN TEAM_ID2
+    WHEN MATCH_WINNER = 1 THEN TEAM_ID1
+END MATCHES_WON_BY
+FROM ipl_match ) A
+WHERE TOSS_WON_BY = MATCHES_WON_BY 
+GROUP BY TOSS_WON_BY ) T1
+
+JOIN 
+
+(SELECT  TOSS_WON_BY TEAMS, COUNT(TOSS_WON_BY) TIMES_LOST_WITH_TOSS FROM (
+SELECT MATCH_ID,
+	CASE 
+    WHEN TOSS_WINNER = 2 THEN TEAM_ID2
+    WHEN TOSS_WINNER = 1 THEN TEAM_ID1
+END TOSS_WON_BY,
+    CASE
+    WHEN MATCH_WINNER = 2 THEN TEAM_ID2
+    WHEN MATCH_WINNER = 1 THEN TEAM_ID1
+END MATCHES_WON_BY
+FROM ipl_match ) A
+WHERE TOSS_WON_BY <> MATCHES_WON_BY 
+GROUP BY TOSS_WON_BY) T2
+USING (TEAMS)
+) B
+
+JOIN ipl_match_schedule T3 USING (MATCH_ID) 
+) C
+
+JOIN
+
+(SELECT STADIUM_ID, STADIUM_NAME 
+	FROM ipl_stadium) E
+USING (STADIUM_ID);
+
+-- ----------------------------------------
+-- TRY OF CASE:
+SELECT MATCH_ID,
+	CASE 
+    WHEN TOSS_WINNER = 2 THEN TEAM_ID2
+    WHEN TOSS_WINNER = 1 THEN TEAM_ID1
+END TOSS,
+    CASE
+    WHEN MATCH_WINNER = 2 THEN TEAM_ID2
+    WHEN MATCH_WINNER = 1 THEN TEAM_ID1
+END MATCHES
+FROM ipl_match;
+ 
+
+-- 4.	Show the total bids along with bid team and team name.
+
+SELECT TEAM_NAME, 
+	NO_OF_BIDS, 
+	BID_TEAM 
+FROM 
+	ipl_bidder_points T1 JOIN ipl_bidding_details T2 USING(BIDDER_ID) 
+JOIN ipl_team T3 ON T2.BID_TEAM=T3.TEAM_ID;
+
+SELECT * FROM ipl_bidder_points;
+SELECT * FROM ipl_bidding_details;
+SELECT * FROM ipl_team;
+
+
+-- 5.	Show the team id who won the match as per the win details.
+
+SELECT TEAM_NAME, TEAM_ID FROM ipl_team WHERE TEAM_ID IN
+(SELECT DISTINCT MATCH_WINNER FROM ipl_match);
+
+-- 6.	Display total matches played, total matches won and total matches lost by team along with its team name.
+
+SELECT   TEAM_NAME, SUM(MATCHES_PLAYED) MATCHES_PLAYED, SUM(MATCHES_WON)MATCHES_WON, SUM(MATCHES_LOST) MATCHES_WON
+ FROM ipl_team_standings JOIN  ipl_team USING (TEAM_ID)
+ GROUP BY TEAM_ID;
+ 
+ 
+SELECT  * FROM ipl_team_standings JOIN  ipl_team USING (TEAM_ID);
+
+-- 7.	Display the bowlers for Mumbai Indians team.
+
+SELECT PLAYER_NAME FROM ipl_team_players T1 JOIN  ipl_team T2 USING(TEAM_ID)
+JOIN ipl_player USING(PLAYER_ID) WHERE PLAYER_ROLE ='BOWLER' AND TEAM_NAME ='MUMBAI INDIANS';
+
+-- 8.	How many all-rounders are there in each team, Display the teams with more than 4 
+--  all-rounder in descending order.
+
+SELECT REMARKS,COUNT(PLAYER_ID) COUNT FROM 
+(SELECT * FROM ipl_team_players WHERE PLAYER_ID IN 
+(SELECT PLAYER_ID FROM ipl_team_players WHERE PLAYER_ROLE ='ALL-ROUNDER')) A 
+GROUP BY REMARKS HAVING COUNT(PLAYER_ID)>4 ORDER BY COUNT(PLAYER_ID) DESC;
+
+
+SELECT TEAM_NAME, COUNT(PLAYER_ID) COUNTS_OF_ALL_ROUNDERS  FROM
+(SELECT PLAYER_ID, PLAYER_NAME, PLAYER_ROLE, TEAM_NAME FROM ipl_team_players T1 JOIN ipl_team T2 USING (TEAM_ID) JOIN 
+ipl_player USING(PLAYER_ID) WHERE PLAYER_ROLE ='ALL-ROUNDER') A
+GROUP BY TEAM_NAME HAVING COUNT(PLAYER_ID) >4 ORDER BY COUNT(PLAYER_ID) DESC;
